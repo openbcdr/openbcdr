@@ -1,6 +1,4 @@
 <title>OpenBCDR Plan Check</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,600;8..60,700&display=swap" rel="stylesheet">
 <style>
 /* Layout: examiner's workpaper. Input sheet on the left, findings ledger on the right; one column on phones. */
 :root{
@@ -9,9 +7,9 @@
   --crit:#a3201c; --crit-soft:#fbe9e7; --high:#b4580e; --high-soft:#fdf0e3;
   --med:#7a6a00; --med-soft:#f8f3d6; --low:#3d6b4a; --low-soft:#e7f2ea;
   --ok:#2f6b3f; --ok-soft:#e5f2e8;
-  --display:'Source Serif 4',Georgia,'Times New Roman',serif;
-  --body:'IBM Plex Sans',system-ui,-apple-system,'Segoe UI',sans-serif;
-  --mono:'IBM Plex Mono',ui-monospace,'Cascadia Mono',Consolas,monospace;
+  --display:'Iowan Old Style','Palatino Linotype',Palatino,Georgia,'Times New Roman',serif;
+  --body:system-ui,-apple-system,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;
+  --mono:ui-monospace,'Cascadia Mono','SFMono-Regular',Consolas,'Liberation Mono',monospace;
 }
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
   --paper:#12161c; --sheet:#1a2028; --ink:#e4e8ee; --muted:#9aa4b1; --rule:#2c343f;
@@ -140,15 +138,15 @@ footer{font-size:12.5px;color:var(--muted);border-top:1px solid var(--rule);padd
     <section class="panel" aria-labelledby="out-h">
       <h2 id="out-h">Findings</h2>
       <div class="tabs" role="tablist">
-        <button role="tab" aria-selected="true" data-tab="summary" id="t-summary">Summary</button>
-        <button role="tab" aria-selected="false" data-tab="rules" id="t-rules">Rule checks</button>
-        <button role="tab" aria-selected="false" data-tab="coverage" id="t-coverage">Coverage</button>
-        <button role="tab" aria-selected="false" data-tab="report" id="t-report">Report</button>
+        <button role="tab" aria-selected="true" aria-controls="p-summary" tabindex="0" data-tab="summary" id="t-summary">Summary</button>
+        <button role="tab" aria-selected="false" aria-controls="p-rules" tabindex="-1" data-tab="rules" id="t-rules">Rule checks</button>
+        <button role="tab" aria-selected="false" aria-controls="p-coverage" tabindex="-1" data-tab="coverage" id="t-coverage">Coverage</button>
+        <button role="tab" aria-selected="false" aria-controls="p-report" tabindex="-1" data-tab="report" id="t-report">Report</button>
       </div>
-      <div data-pane="summary" id="p-summary"></div>
-      <div data-pane="rules" id="p-rules" hidden></div>
-      <div data-pane="coverage" id="p-coverage" hidden></div>
-      <div data-pane="report" id="p-report" hidden></div>
+      <div data-pane="summary" id="p-summary" role="tabpanel" aria-labelledby="t-summary" tabindex="0"></div>
+      <div data-pane="rules" id="p-rules" role="tabpanel" aria-labelledby="t-rules" tabindex="0" hidden></div>
+      <div data-pane="coverage" id="p-coverage" role="tabpanel" aria-labelledby="t-coverage" tabindex="0" hidden></div>
+      <div data-pane="report" id="p-report" role="tabpanel" aria-labelledby="t-report" tabindex="0" hidden></div>
     </section>
   </div>
 
@@ -198,8 +196,9 @@ const ERR = {
 function errText(e){ if(e && e.code==='cancelled') return ''; return (e && ERR[e.code]) || (e && e.code ? 'The request failed ('+e.code+'). Try again.' : String(e && e.message || e)); }
 
 /* ---------- rendering ---------- */
-function tabTo(name){ document.querySelectorAll('.tabs button').forEach(b=>b.setAttribute('aria-selected', String(b.dataset.tab===name))); document.querySelectorAll('[data-pane]').forEach(p=>p.hidden = p.dataset.pane!==name); }
-document.querySelectorAll('.tabs button').forEach(b=>b.addEventListener('click',()=>tabTo(b.dataset.tab)));
+function tabTo(name, focus){ document.querySelectorAll('.tabs button').forEach(b=>{ const on=b.dataset.tab===name; b.setAttribute('aria-selected', String(on)); b.tabIndex = on?0:-1; if(on&&focus) b.focus(); }); document.querySelectorAll('[data-pane]').forEach(p=>p.hidden = p.dataset.pane!==name); }
+const TABS=[...document.querySelectorAll('.tabs button')];
+TABS.forEach((b,i)=>{ b.addEventListener('click',()=>tabTo(b.dataset.tab)); b.addEventListener('keydown',ev=>{ let j=null; if(ev.key==='ArrowRight') j=(i+1)%TABS.length; else if(ev.key==='ArrowLeft') j=(i-1+TABS.length)%TABS.length; else if(ev.key==='Home') j=0; else if(ev.key==='End') j=TABS.length-1; if(j!==null){ ev.preventDefault(); tabTo(TABS[j].dataset.tab,true); } }); });
 
 function emptyState(pane, lines){ pane.replaceChildren(); const d=el('div','empty'); lines.forEach(l=>d.append(el('span',null,l))); pane.append(d); }
 
@@ -267,6 +266,7 @@ function renderReport(){
   if(downloads){ const dl=el('button',null,'Download .txt'); dl.type='button'; dl.addEventListener('click',()=>{ downloads.save({filename:'openbcdr-report-'+(state.extract.plan_id||'plan')+'-'+state.today+'.txt', data:state.report}).catch(()=>{}); }); row.append(dl); }
   const pre=el('pre','report',state.report); pane.append(row, pre);
 }
+function clearResults(){ state=null; $('resumeRow').hidden=true; resetSteps(); renderAll(); }
 function renderAll(){ renderSummary(); renderRules(); renderCoverage(); renderReport(); }
 
 /* ---------- running ---------- */
@@ -287,7 +287,7 @@ async function runCoverage(){
     const batch = state.batches[state.nextBatch];
     let raw;
     try { raw = await askJSON(P.buildComplianceInput(state.text, batch)); }
-    catch(e){ setStep('coverage','error', state.nextBatch+' of '+total+' batches'); const m=errText(e); showError(m); if(m){ $('resumeRow').hidden=false; $('resumeMeta').textContent=state.findings.length+' of '+state.reqs.length+' requirements done'; } buildReport(); renderAll(); return false; }
+    catch(e){ const stopped = e && e.code==='cancelled'; setStep('coverage','error', (stopped?'Stopped · ':'')+state.nextBatch+' of '+total+' batches'); showError(stopped?'':errText(e)); $('resumeRow').hidden=false; $('resumeMeta').textContent=state.findings.length+' of '+state.reqs.length+' requirements done'+(stopped?'. Stopped by you.':''); buildReport(); renderAll(); setTimeout(()=>$('resume').focus(),0); return false; }
     let fs;
     try { fs = E.compliance.applyBatch(batch, raw, state.text); }
     catch(e){ setStep('coverage','error'); showError('Claude’s answer for this batch had a field the checker could not accept ('+(e.message||e)+'). Continue to ask again.'); $('resumeRow').hidden=false; buildReport(); renderAll(); return false; }
@@ -300,7 +300,7 @@ async function runCoverage(){
 }
 
 async function run(){
-  showError(''); $('resumeRow').hidden=true; resetSteps();
+  showError(''); clearResults();
   const text = $('plan').value;
   if(!text.trim()){ showError('Paste a plan or load the sample first.'); return; }
   if(!$('attest').checked){ showError('Confirm the plan is synthetic or sanitized before running the check.'); return; }
@@ -314,7 +314,7 @@ async function run(){
     setStep('extract','running');
     let raw;
     try { raw = await askJSON(P.buildExtractionInput(text,'')); }
-    catch(e){ setStep('extract','error'); showError(errText(e)); return; }
+    catch(e){ const stopped = e && e.code==='cancelled'; setStep('extract','error', stopped?'Stopped':''); showError(stopped?'':errText(e)); setTimeout(()=>$('run').focus(),0); return; }
     const v = E.validateExtract(raw);
     if(!v.ok){ setStep('extract','error'); showError('Claude’s structured record did not pass validation ('+v.errors.slice(0,3).map(x=>x.path+': '+x.message).join('; ')+'). Run the check again.'); return; }
     setStep('extract','done', v.value.plan_id||'');
@@ -340,9 +340,10 @@ $('resume').addEventListener('click', async ()=>{
   try { const ok = await runCoverage(); buildReport(); renderAll(); if(ok){ setStep('report','done'); tabTo('summary'); } }
   finally { busy(false); controller=null; }
 });
-$('loadSample').addEventListener('click', ()=>{ $('plan').value = SAMPLE_PLAN; $('attest').checked = true; updateMeta(); });
-$('file').addEventListener('change', ev=>{ const f=ev.target.files[0]; if(!f) return; const r=new FileReader(); r.onload=()=>{ $('plan').value=String(r.result); $('attest').checked=false; updateMeta(); }; r.readAsText(f); ev.target.value=''; });
-$('plan').addEventListener('input', updateMeta);
+$('loadSample').addEventListener('click', ()=>{ $('plan').value = SAMPLE_PLAN; $('attest').checked = true; updateMeta(); if(state) clearResults(); });
+$('file').addEventListener('change', ev=>{ const f=ev.target.files[0]; if(!f) return; const r=new FileReader(); r.onload=()=>{ $('plan').value=String(r.result); $('attest').checked=false; updateMeta(); if(state) clearResults(); }; r.readAsText(f); ev.target.value=''; });
+$('plan').addEventListener('input', ()=>{ updateMeta(); if($('plan').value!==SAMPLE_PLAN) $('attest').checked=false; if(state) clearResults(); });
+$('profile').addEventListener('change', ()=>{ if(state) clearResults(); });
 
 function readyText(){ if(!sample) return; const pf=PROFILES[$('profile').value]; const n=E.standards.applicable(E.standards.load(STD), pf.profile).length; const calls=1+Math.ceil(n/P.REQUIREMENTS_PER_CALL); $('availability').textContent='Ready. '+pf.label+' profile: '+n+' requirements, '+calls+' Claude requests on your account (1 to read the plan, then '+P.REQUIREMENTS_PER_CALL+' requirements per request).'; }
 $('profile').addEventListener('change', readyText);
@@ -354,11 +355,9 @@ const use = window.claude && window.claude.use;
 if(!use){ $('availability').textContent = 'Open this page in Claude (signed in) to run the AI steps.'; }
 else {
   window.claude.use('sample').then(s=>{
-    sample = s;
     if(!s){ $('availability').textContent = 'Claude is not reachable in this view. Open the page in Claude while signed in.'; busy(false); return; }
-    readyText();
-    if(s.limits) s.limits().then(l=>{ if(l && l.maxPromptBytes) maxBytes=l.maxPromptBytes; }).catch(()=>{});
-    busy(false);
+    const lim = s.limits ? s.limits().catch(()=>null) : Promise.resolve(null);
+    lim.then(l=>{ sample = s; if(l && l.maxPromptBytes) maxBytes=l.maxPromptBytes; /* else keep the documented 256 KiB cap */ readyText(); busy(false); });
   });
   window.claude.use('downloads').then(d=>{ downloads=d; if(state && state.report) renderReport(); });
 }
