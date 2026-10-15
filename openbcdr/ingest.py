@@ -20,7 +20,7 @@ Rules:
 - rto_hours and rpo_hours are numbers of hours. Convert stated units (minutes, days) to hours. If a plan states a range, use the longer value.
 - `feeds` on an RTO entry lists systems that DEPEND ON this system - that is, systems that cannot operate until this one is recovered. Populate it only from explicit dependency statements in the document.
 - `raw_text` on a procedure must be the verbatim procedure text from the document, not a paraphrase. Downstream checks run on that text.
-- `system_inventory` is every system the document names anywhere. `critical_systems` is only those the document designates as critical.
+- `system_inventory` is the systems the document lists as in scope or as dependencies: its scope statement, system inventory or recovery-objectives table, and the systems it states it depends on. Do NOT add a system that appears only inside a procedure's steps; downstream checks compare procedure references against this list to catch renamed or decommissioned systems. `critical_systems` is only those the document designates as critical.
 - Dates use YYYY-MM-DD. If a date is stated ambiguously, use null rather than guessing a format."""
 
 

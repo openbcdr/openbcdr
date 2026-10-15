@@ -1,0 +1,364 @@
+<title>OpenBCDR Plan Check</title>
+<style>
+/* Layout: examiner's workpaper. Input sheet on the left, findings ledger on the right; one column on phones. */
+:root{
+  --paper:#f6f7f4; --sheet:#ffffff; --ink:#1c2430; --muted:#5b6573; --rule:#d9ddd6;
+  --accent:#1f4e79; --accent-soft:#e6eef6;
+  --crit:#a3201c; --crit-soft:#fbe9e7; --high:#b4580e; --high-soft:#fdf0e3;
+  --med:#7a6a00; --med-soft:#f8f3d6; --low:#3d6b4a; --low-soft:#e7f2ea;
+  --ok:#2f6b3f; --ok-soft:#e5f2e8;
+  --display:'Iowan Old Style','Palatino Linotype',Palatino,Georgia,'Times New Roman',serif;
+  --body:system-ui,-apple-system,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;
+  --mono:ui-monospace,'Cascadia Mono','SFMono-Regular',Consolas,'Liberation Mono',monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --paper:#12161c; --sheet:#1a2028; --ink:#e4e8ee; --muted:#9aa4b1; --rule:#2c343f;
+  --accent:#8db8e3; --accent-soft:#1d2c3c;
+  --crit:#f08a82; --crit-soft:#3a1d1c; --high:#f0ab6a; --high-soft:#38281a; --med:#e3cf62; --med-soft:#33301a;
+  --low:#8fc79e; --low-soft:#1d3024; --ok:#8fc79e; --ok-soft:#1d3024; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --paper:#12161c; --sheet:#1a2028; --ink:#e4e8ee; --muted:#9aa4b1; --rule:#2c343f;
+  --accent:#8db8e3; --accent-soft:#1d2c3c;
+  --crit:#f08a82; --crit-soft:#3a1d1c; --high:#f0ab6a; --high-soft:#38281a; --med:#e3cf62; --med-soft:#33301a;
+  --low:#8fc79e; --low-soft:#1d3024; --ok:#8fc79e; --ok-soft:#1d3024; color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+[data-pane]{min-width:0}
+body{background:var(--paper);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.55;margin:0}
+.wrap{max-width:1240px;margin:0 auto;padding-inline:20px;padding-block:28px 48px;display:grid;gap:22px}
+header{display:grid;gap:8px;border-bottom:2px solid var(--ink);padding-bottom:16px}
+.eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+h1{font-family:var(--display);font-size:clamp(28px,4vw,40px);line-height:1.1;margin:0;text-wrap:balance}
+.lede{max-width:68ch;margin:0;color:var(--muted)}
+.notice{display:grid;gap:4px;border-left:3px solid var(--accent);background:var(--accent-soft);padding:10px 14px;font-size:13.5px;max-width:90ch}
+.notice b{color:var(--ink)}
+.cols{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:22px;align-items:start}
+@media (max-width:900px){.cols{grid-template-columns:minmax(0,1fr)}}
+.panel{background:var(--sheet);border:1px solid var(--rule);border-radius:6px;padding:18px;display:grid;gap:14px;min-width:0}
+h2{font-family:var(--display);font-size:20px;margin:0}
+h3{font-size:13px;font-family:var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:0;font-weight:500}
+label{font-weight:500}
+textarea{width:100%;min-height:340px;resize:vertical;font-family:var(--mono);font-size:12.5px;line-height:1.5;padding:12px;border:1px solid var(--rule);border-radius:4px;background:var(--paper);color:var(--ink)}
+textarea:focus,select:focus,button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.row.split{justify-content:space-between}
+select{font:inherit;padding:8px 10px;border:1px solid var(--rule);border-radius:4px;background:var(--sheet);color:var(--ink);max-width:100%}
+.check{display:flex;gap:10px;align-items:flex-start;font-size:13.5px}
+.check input{margin-top:4px;flex:none}
+button{font:inherit;font-weight:500;border-radius:4px;padding:9px 14px;cursor:pointer;border:1px solid var(--rule);background:var(--sheet);color:var(--ink)}
+button.primary{background:var(--accent);border-color:var(--accent);color:var(--sheet)}
+button:disabled{opacity:.5;cursor:not-allowed}
+.small{font-size:13px;color:var(--muted)}
+.filelabel{display:inline-flex;align-items:center;gap:6px;cursor:pointer;font-size:13.5px;color:var(--accent);font-weight:500}
+.filelabel input{position:absolute;width:1px;height:1px;opacity:0}
+.steps{list-style:none;margin:0;padding:0;display:grid;gap:6px;font-size:13.5px}
+.steps li{display:grid;grid-template-columns:20px minmax(0,1fr) auto;gap:8px;align-items:baseline}
+.dot{width:10px;height:10px;border-radius:50%;border:2px solid var(--rule);display:inline-block;margin-top:5px}
+.steps li[data-s="running"] .dot{border-color:var(--accent);background:var(--accent-soft);animation:pulse 1.2s ease-in-out infinite}
+.steps li[data-s="done"] .dot{border-color:var(--ok);background:var(--ok)}
+.steps li[data-s="error"] .dot{border-color:var(--crit);background:var(--crit)}
+.steps .meta{font-family:var(--mono);font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+@keyframes pulse{50%{opacity:.4}}
+@media (prefers-reduced-motion:reduce){.steps li[data-s="running"] .dot{animation:none}}
+.alert{border:1px solid var(--crit);background:var(--crit-soft);color:var(--ink);border-radius:4px;padding:10px 12px;font-size:13.5px}
+.tabs{display:flex;flex-wrap:wrap;gap:4px;border-bottom:1px solid var(--rule)}
+.tabs button{border:none;border-bottom:2px solid transparent;border-radius:0;background:none;padding:8px 12px;color:var(--muted)}
+.tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+.tally{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px}
+.tile{border:1px solid var(--rule);border-radius:4px;padding:10px 12px;display:grid;gap:2px}
+.tile .n{font-family:var(--display);font-size:28px;line-height:1;font-variant-numeric:tabular-nums}
+.tile .k{font-size:12.5px;color:var(--muted)}
+.tile.crit .n{color:var(--crit)} .tile.high .n{color:var(--high)} .tile.ok .n{color:var(--ok)}
+.list{display:grid;gap:8px}
+.item{display:grid;grid-template-columns:4px minmax(0,1fr);border:1px solid var(--rule);border-radius:4px;overflow:hidden}
+.item .bar{background:var(--rule)}
+.item .body{padding:10px 12px;display:grid;gap:4px;min-width:0}
+.item .title{font-weight:600;overflow-wrap:anywhere}
+.item .detail{font-size:13.5px;color:var(--muted);overflow-wrap:anywhere}
+.sev-critical .bar{background:var(--crit)} .sev-high .bar{background:var(--high)} .sev-medium .bar{background:var(--med)} .sev-low .bar{background:var(--low)}
+.pill{display:inline-block;font-family:var(--mono);font-size:11px;letter-spacing:.05em;text-transform:uppercase;padding:2px 7px;border-radius:999px;white-space:nowrap}
+.p-critical{background:var(--crit-soft);color:var(--crit)} .p-high{background:var(--high-soft);color:var(--high)} .p-medium{background:var(--med-soft);color:var(--med)} .p-low{background:var(--low-soft);color:var(--low)}
+.p-full{background:var(--ok-soft);color:var(--ok)} .p-partial{background:var(--med-soft);color:var(--med)} .p-gap{background:var(--crit-soft);color:var(--crit)} .p-insufficient_evidence{background:var(--high-soft);color:var(--high)}
+.head{display:flex;flex-wrap:wrap;gap:8px;align-items:baseline;justify-content:space-between}
+.reqid{font-family:var(--mono);font-size:12.5px;color:var(--muted)}
+blockquote{margin:4px 0 0;padding:6px 10px;border-left:2px solid var(--rule);font-size:13px;font-style:italic;overflow-wrap:anywhere}
+.verified{font-family:var(--mono);font-size:11.5px}
+.verified.yes{color:var(--ok)} .verified.no{color:var(--high)}
+pre.report{margin:0;max-width:100%;max-height:620px;overflow:auto;background:var(--paper);border:1px solid var(--rule);border-radius:4px;padding:14px;font-family:var(--mono);font-size:12px;line-height:1.5;white-space:pre}
+.empty{border:1px dashed var(--rule);border-radius:4px;padding:18px;color:var(--muted);font-size:14px;display:grid;gap:6px}
+footer{font-size:12.5px;color:var(--muted);border-top:1px solid var(--rule);padding-top:14px;display:grid;gap:4px;max-width:90ch}
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">OpenBCDR · open-source BC/DR plan review</div>
+    <h1>Check a recovery plan against public standards</h1>
+    <p class="lede">Paste a business continuity or disaster recovery plan. Rule checks catch broken recovery-time dependencies, stale contacts, missing owners and untested versions. Claude then assesses coverage against FFIEC BCM (2019), FINRA Rule 4370 and NIST SP 800-34, and every claim of coverage must quote your plan word for word.</p>
+    <div class="notice">
+      <span><b>Runs on your own Claude account.</b> No API key. The analysis uses your Claude usage, and Claude asks you to allow it the first time. Your plan is not stored by this page.</span>
+      <span><b>Decision support only.</b> This does not certify compliance or replace a qualified BC/DR professional. A person reviews every finding before anyone acts on it.</span>
+    </div>
+  </header>
+
+  <div class="cols">
+    <section class="panel" aria-labelledby="in-h">
+      <div class="row split"><h2 id="in-h">Your plan</h2>
+        <div class="row">
+          <button type="button" id="loadSample">Load sample plan</button>
+          <label class="filelabel">Upload .md or .txt<input type="file" id="file" accept=".md,.txt,text/plain,text/markdown"></label>
+        </div>
+      </div>
+      <textarea id="plan" spellcheck="false" aria-label="Plan text"></textarea>
+      <div class="small" id="planMeta"></div>
+      <div class="row">
+        <label for="profile">Organization type</label>
+        <select id="profile">
+          <option value="bank">Bank (FFIEC BCM)</option>
+          <option value="broker">Broker-dealer (FFIEC + FINRA 4370)</option>
+          <option value="any">Any organization (NIST SP 800-34)</option>
+        </select>
+      </div>
+      <label class="check"><input type="checkbox" id="attest"><span>This plan is synthetic or sanitized, and it contains nothing I am not allowed to share, such as real names, phone numbers, account details or confidential system information.</span></label>
+      <div class="row">
+        <button type="button" class="primary" id="run">Run the check</button>
+        <button type="button" id="stop" hidden>Stop</button>
+      </div>
+      <div id="availability" class="small"></div>
+      <ol class="steps" id="steps" aria-live="polite">
+        <li data-step="boundary"><span class="dot"></span><span>Safety screen for obvious private data</span><span class="meta"></span></li>
+        <li data-step="extract"><span class="dot"></span><span>Claude reads the plan into a structured record</span><span class="meta"></span></li>
+        <li data-step="rules"><span class="dot"></span><span>Rule checks (no AI, instant)</span><span class="meta"></span></li>
+        <li data-step="coverage"><span class="dot"></span><span>Claude assesses coverage, quotes verified on this page</span><span class="meta"></span></li>
+        <li data-step="report"><span class="dot"></span><span>Report</span><span class="meta"></span></li>
+      </ol>
+      <div id="error" class="alert" role="alert" hidden></div>
+      <div class="row" id="resumeRow" hidden><button type="button" id="resume">Continue the coverage check</button><span class="small" id="resumeMeta"></span></div>
+    </section>
+
+    <section class="panel" aria-labelledby="out-h">
+      <h2 id="out-h">Findings</h2>
+      <div class="tabs" role="tablist">
+        <button role="tab" aria-selected="true" aria-controls="p-summary" tabindex="0" data-tab="summary" id="t-summary">Summary</button>
+        <button role="tab" aria-selected="false" aria-controls="p-rules" tabindex="-1" data-tab="rules" id="t-rules">Rule checks</button>
+        <button role="tab" aria-selected="false" aria-controls="p-coverage" tabindex="-1" data-tab="coverage" id="t-coverage">Coverage</button>
+        <button role="tab" aria-selected="false" aria-controls="p-report" tabindex="-1" data-tab="report" id="t-report">Report</button>
+      </div>
+      <div data-pane="summary" id="p-summary" role="tabpanel" aria-labelledby="t-summary" tabindex="0"></div>
+      <div data-pane="rules" id="p-rules" role="tabpanel" aria-labelledby="t-rules" tabindex="0" hidden></div>
+      <div data-pane="coverage" id="p-coverage" role="tabpanel" aria-labelledby="t-coverage" tabindex="0" hidden></div>
+      <div data-pane="report" id="p-report" role="tabpanel" aria-labelledby="t-report" tabindex="0" hidden></div>
+    </section>
+  </div>
+
+  <footer>
+    <span>OpenBCDR is Apache-2.0 open source: github.com/openbcdr/openbcdr. This page runs the same analysis core as the command-line tool, ported to the browser and checked against it.</span>
+    <span>The standards index has not yet been confirmed record by record against its primary sources, so the report withholds an overall score and marks itself not examiner-ready. The findings are still useful as a review checklist.</span>
+    <span>The safety screen only catches generic patterns. It cannot recognize your organization's names or systems, so sanitize before you paste.</span>
+  </footer>
+</div>
+
+<script src="engine.js"></script>
+<script src="prompts.js"></script>
+<script src="standards.js"></script>
+<script src="boundary.js"></script>
+<script>
+const SAMPLE_PLAN = /*SAMPLE_PLAN*/"";
+const E = window.OpenBCDR, P = window.OpenBCDR_PROMPTS, STD = window.OpenBCDR_STANDARDS, B = window.OpenBCDR_BOUNDARY;
+const $ = id => document.getElementById(id);
+const PROFILES = {
+  bank:   {label:'Bank', profile:{all_banks:true, any_organization:true}, finra:false},
+  broker: {label:'Broker-dealer', profile:{all_banks:true, finra_member:true, any_organization:true}, finra:true},
+  any:    {label:'Any organization', profile:{any_organization:true}, finra:false},
+};
+let sample = null, downloads = null, maxBytes = 262144, controller = null;
+let state = null; // {text, today, profileKey, extract, issues, advisories, reqs, batches, nextBatch, findings, report}
+
+function todayISO(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function bytes(s){ return new TextEncoder().encode(s).length; }
+function el(tag, cls, text){ const n=document.createElement(tag); if(cls) n.className=cls; if(text!=null) n.textContent=text; return n; }
+function setStep(name, s, meta){ const li=document.querySelector('[data-step="'+name+'"]'); if(!li) return; if(s) li.dataset.s=s; else delete li.dataset.s; li.querySelector('.meta').textContent=meta||''; }
+function resetSteps(){ document.querySelectorAll('#steps li').forEach(li=>{ delete li.dataset.s; li.querySelector('.meta').textContent=''; }); }
+function showError(msg){ const e=$('error'); e.textContent=msg; e.hidden=!msg; }
+function updateMeta(){ const t=$('plan').value; $('planMeta').textContent = t ? (t.length.toLocaleString()+' characters') : 'Paste a plan, upload a file, or load the sample.'; }
+function busy(on){ $('run').disabled=on || !sample; $('stop').hidden=!on; $('loadSample').disabled=on; $('plan').readOnly=on; $('profile').disabled=on; }
+
+const ERR = {
+  not_granted:'Claude access was not allowed for this page. Allow it from the page’s permissions to run the check.',
+  sampling_disabled:'Claude is not available for this account or organization, so the AI steps cannot run here.',
+  rate_limited:'Your Claude usage limit or rate limit was reached. Wait a bit, then continue. Nothing finished so far is lost.',
+  session_expired:'Your Claude session expired. Sign in again, then continue.',
+  prompt_too_large:'This plan is too long to send in one request. Split it into smaller sections and check them one at a time.',
+  invalid_json:'Claude’s answer could not be read as structured data. Try again; if it keeps happening, the plan may need to be shorter.',
+  refused:'Claude declined this request. Check that the plan contains only BC/DR content.',
+  empty_completion:'Claude returned an empty answer. Try again.',
+  upstream_error:'A temporary connection problem stopped the request. Try again.',
+};
+function errText(e){ if(e && e.code==='cancelled') return ''; return (e && ERR[e.code]) || (e && e.code ? 'The request failed ('+e.code+'). Try again.' : String(e && e.message || e)); }
+
+/* ---------- rendering ---------- */
+function tabTo(name, focus){ document.querySelectorAll('.tabs button').forEach(b=>{ const on=b.dataset.tab===name; b.setAttribute('aria-selected', String(on)); b.tabIndex = on?0:-1; if(on&&focus) b.focus(); }); document.querySelectorAll('[data-pane]').forEach(p=>p.hidden = p.dataset.pane!==name); }
+const TABS=[...document.querySelectorAll('.tabs button')];
+TABS.forEach((b,i)=>{ b.addEventListener('click',()=>tabTo(b.dataset.tab)); b.addEventListener('keydown',ev=>{ let j=null; if(ev.key==='ArrowRight') j=(i+1)%TABS.length; else if(ev.key==='ArrowLeft') j=(i-1+TABS.length)%TABS.length; else if(ev.key==='Home') j=0; else if(ev.key==='End') j=TABS.length-1; if(j!==null){ ev.preventDefault(); tabTo(TABS[j].dataset.tab,true); } }); });
+
+function emptyState(pane, lines){ pane.replaceChildren(); const d=el('div','empty'); lines.forEach(l=>d.append(el('span',null,l))); pane.append(d); }
+
+function renderSummary(){
+  const pane=$('p-summary'); pane.replaceChildren();
+  if(!state || !state.issues){ emptyState(pane,['Results appear here after you run the check.','Load the sample plan to see what it catches: it is an invented bank plan with problems planted on purpose.']); return; }
+  const sev = {critical:0,high:0,medium:0,low:0}; state.issues.forEach(i=>{ if(sev[i.severity]!=null) sev[i.severity]++; });
+  const cov = {full:0,partial:0,gap:0,insufficient_evidence:0}; (state.findings||[]).forEach(f=>{ if(cov[f.coverage]!=null) cov[f.coverage]++; });
+  const t=el('div','tally');
+  [['crit',sev.critical,'Critical rule findings'],['high',sev.high,'High rule findings'],['',sev.medium+sev.low,'Medium and low'],['ok',cov.full,'Requirements fully covered'],['',cov.partial,'Partially covered'],['high',cov.gap+cov.insufficient_evidence,'Gaps or unverified']].forEach(([c,n,k])=>{ const d=el('div','tile '+c); d.append(el('span','n',String(n)),el('span','k',k)); t.append(d); });
+  pane.append(t);
+  const done = state.findings ? state.findings.length : 0, total = state.reqs ? state.reqs.length : 0;
+  const p = el('p','small', (state.extract.plan_id||'Plan')+' · '+PROFILES[state.profileKey].label+' profile · '+done+' of '+total+' requirements assessed · rule checks dated '+state.today);
+  pane.append(p);
+  if(state.advisories && state.advisories.length){
+    pane.append(el('h3',null,'Practice advisories'));
+    const l=el('div','list'); E.advisory.lines(state.advisories).forEach(line=>{ const it=el('div','item'); const b=el('div','body'); b.append(el('div','detail',line)); it.append(el('div','bar'),b); l.append(it); }); pane.append(l);
+  }
+}
+
+function renderRules(){
+  const pane=$('p-rules'); pane.replaceChildren();
+  if(!state || !state.issues){ emptyState(pane,['Rule checks run on the structured record Claude extracts: recovery-time conflicts, contacts not verified in a year, TBD owners, vendors without recovery terms, procedures naming retired systems, untested versions.']); return; }
+  if(!state.issues.length){ emptyState(pane,['No rule findings. The checks found no conflicts in the extracted record.']); return; }
+  const order={critical:0,high:1,medium:2,low:3};
+  const l=el('div','list');
+  [...state.issues].sort((a,b)=>(order[a.severity]??9)-(order[b.severity]??9)).forEach(i=>{
+    const it=el('div','item sev-'+i.severity); const b=el('div','body');
+    const h=el('div','head'); h.append(el('span','title',i.title), el('span','pill p-'+i.severity,i.severity));
+    b.append(h, el('div','detail',i.detail));
+    if(i.section) b.append(el('div','reqid','Section: '+i.section));
+    if(i.evidence) b.append(el('blockquote',null,i.evidence));
+    b.append(el('div','reqid',i.check));
+    it.append(el('div','bar'),b); l.append(it);
+  });
+  pane.append(l);
+}
+
+function renderCoverage(){
+  const pane=$('p-coverage'); pane.replaceChildren();
+  if(!state || !state.findings || !state.findings.length){ emptyState(pane,['Coverage findings appear here as each batch of requirements comes back.','A finding of full or partial coverage only stands if its quote appears in your plan word for word. Otherwise it is marked unverified and needs a person to check.']); return; }
+  const byId={}; state.reqs.forEach(r=>byId[r.req_id]=r);
+  const order={gap:0,insufficient_evidence:1,partial:2,full:3};
+  const l=el('div','list');
+  [...state.findings].sort((a,b)=>(order[a.coverage]??9)-(order[b.coverage]??9)).forEach(f=>{
+    const r=byId[f.req_id]||{}; const sevCls = f.coverage==='gap'?'sev-critical':f.coverage==='insufficient_evidence'?'sev-high':f.coverage==='partial'?'sev-medium':'sev-low';
+    const it=el('div','item '+sevCls); const b=el('div','body');
+    const h=el('div','head'); h.append(el('span','reqid',f.req_id+(r.source?' · '+r.source+' '+(r.section||''):'')), el('span','pill p-'+f.coverage, f.coverage==='insufficient_evidence'?'unverified':f.coverage));
+    b.append(h);
+    if(r.requirement) b.append(el('div','title',r.requirement));
+    b.append(el('div','detail',f.rationale));
+    if(f.evidence_quote){ b.append(el('blockquote',null,f.evidence_quote)); b.append(el('span','verified '+(f.evidence_verified?'yes':'no'), f.evidence_verified?'Quote found in your plan':'Quote not found in your plan')); }
+    if(f.recommended_action) b.append(el('div','detail','Next step: '+f.recommended_action));
+    it.append(el('div','bar'),b); l.append(it);
+  });
+  pane.append(l);
+}
+
+function renderReport(){
+  const pane=$('p-report'); pane.replaceChildren();
+  if(!state || !state.report){ emptyState(pane,['The full text report appears here when the check finishes. It is the same report the command-line tool writes.']); return; }
+  const row=el('div','row'); const copy=el('button',null,'Copy report'); copy.type='button';
+  copy.addEventListener('click',()=>{ navigator.clipboard.writeText(state.report).then(()=>{copy.textContent='Copied';setTimeout(()=>copy.textContent='Copy report',1500);}).catch(()=>{ const sel=window.getSelection(); const rng=document.createRange(); rng.selectNodeContents(pre); sel.removeAllRanges(); sel.addRange(rng); copy.textContent='Selected. Press Ctrl+C'; }); });
+  row.append(copy);
+  if(downloads){ const dl=el('button',null,'Download .txt'); dl.type='button'; dl.addEventListener('click',()=>{ downloads.save({filename:'openbcdr-report-'+(state.extract.plan_id||'plan')+'-'+state.today+'.txt', data:state.report}).catch(()=>{}); }); row.append(dl); }
+  const pre=el('pre','report',state.report); pane.append(row, pre);
+}
+function clearResults(){ state=null; $('resumeRow').hidden=true; resetSteps(); renderAll(); }
+function renderAll(){ renderSummary(); renderRules(); renderCoverage(); renderReport(); }
+
+/* ---------- running ---------- */
+function buildReport(){
+  state.report = E.report.renderMarkdown({extract:state.extract, requirements:state.reqs, findings:state.findings, issues:state.issues, advisories:state.advisories, generatedAt:state.today, gaps:[], examinerFacing:false});
+}
+
+async function askJSON(input){
+  if(bytes(input) > maxBytes) throw {code:'prompt_too_large'};
+  controller = new AbortController();
+  return sample.json(input, {modelTier:'complex', signal:controller.signal});
+}
+
+async function runCoverage(){
+  const total = state.batches.length;
+  setStep('coverage','running', state.nextBatch+' of '+total+' batches');
+  while(state.nextBatch < total){
+    const batch = state.batches[state.nextBatch];
+    let raw;
+    try { raw = await askJSON(P.buildComplianceInput(state.text, batch)); }
+    catch(e){ const stopped = e && e.code==='cancelled'; setStep('coverage','error', (stopped?'Stopped · ':'')+state.nextBatch+' of '+total+' batches'); showError(stopped?'':errText(e)); $('resumeRow').hidden=false; $('resumeMeta').textContent=state.findings.length+' of '+state.reqs.length+' requirements done'+(stopped?'. Stopped by you.':''); buildReport(); renderAll(); setTimeout(()=>$('resume').focus(),0); return false; }
+    let fs;
+    try { fs = E.compliance.applyBatch(batch, raw, state.text); }
+    catch(e){ setStep('coverage','error'); showError('Claude’s answer for this batch had a field the checker could not accept ('+(e.message||e)+'). Continue to ask again.'); $('resumeRow').hidden=false; buildReport(); renderAll(); return false; }
+    state.findings.push(...fs); state.nextBatch++;
+    setStep('coverage','running', state.nextBatch+' of '+total+' batches');
+    renderSummary(); renderCoverage();
+  }
+  setStep('coverage','done', total+' of '+total+' batches');
+  return true;
+}
+
+async function run(){
+  showError(''); clearResults();
+  const text = $('plan').value;
+  if(!text.trim()){ showError('Paste a plan or load the sample first.'); return; }
+  if(!$('attest').checked){ showError('Confirm the plan is synthetic or sanitized before running the check.'); return; }
+  if(!sample){ showError('This view cannot reach Claude. Open the page in Claude while signed in.'); return; }
+  setStep('boundary','running');
+  try { B.enforce(text,'sandbox',true); } catch(e){ setStep('boundary','error'); showError('Stopped before anything was sent: '+(e.message||e)+'. Remove that content and try again.'); return; }
+  setStep('boundary','done');
+  const profileKey = $('profile').value, today = todayISO();
+  busy(true);
+  try {
+    setStep('extract','running');
+    let raw;
+    try { raw = await askJSON(P.buildExtractionInput(text,'')); }
+    catch(e){ const stopped = e && e.code==='cancelled'; setStep('extract','error', stopped?'Stopped':''); showError(stopped?'':errText(e)); setTimeout(()=>$('run').focus(),0); return; }
+    const v = E.validateExtract(raw);
+    if(!v.ok){ setStep('extract','error'); showError('Claude’s structured record did not pass validation ('+v.errors.slice(0,3).map(x=>x.path+': '+x.message).join('; ')+'). Run the check again.'); return; }
+    setStep('extract','done', v.value.plan_id||'');
+    setStep('rules','running');
+    const pf = PROFILES[profileKey];
+    const issues = E.coherence.runAll(v.value, today, pf.finra, null);
+    const advisories = E.advisory.runAll(v.value, today);
+    const reqs = E.standards.applicable(E.standards.load(STD), pf.profile);
+    const batches=[]; for(let i=0;i<reqs.length;i+=P.REQUIREMENTS_PER_CALL) batches.push(reqs.slice(i,i+P.REQUIREMENTS_PER_CALL));
+    state = {text, today, profileKey, extract:v.value, issues, advisories, reqs, batches, nextBatch:0, findings:[], report:null};
+    setStep('rules','done', issues.length+' findings');
+    buildReport(); renderAll(); tabTo('rules');
+    const ok = await runCoverage();
+    buildReport(); renderAll();
+    if(ok){ setStep('report','done'); tabTo('summary'); }
+  } finally { busy(false); controller=null; }
+}
+
+$('run').addEventListener('click', run);
+$('stop').addEventListener('click', ()=>{ if(controller) controller.abort(); });
+$('resume').addEventListener('click', async ()=>{
+  if(!state) return; showError(''); $('resumeRow').hidden=true; busy(true);
+  try { const ok = await runCoverage(); buildReport(); renderAll(); if(ok){ setStep('report','done'); tabTo('summary'); } }
+  finally { busy(false); controller=null; }
+});
+$('loadSample').addEventListener('click', ()=>{ $('plan').value = SAMPLE_PLAN; $('attest').checked = true; updateMeta(); if(state) clearResults(); });
+$('file').addEventListener('change', ev=>{ const f=ev.target.files[0]; if(!f) return; const r=new FileReader(); r.onload=()=>{ $('plan').value=String(r.result); $('attest').checked=false; updateMeta(); if(state) clearResults(); }; r.readAsText(f); ev.target.value=''; });
+$('plan').addEventListener('input', ()=>{ updateMeta(); if($('plan').value!==SAMPLE_PLAN) $('attest').checked=false; if(state) clearResults(); });
+$('profile').addEventListener('change', ()=>{ if(state) clearResults(); });
+
+function readyText(){ if(!sample) return; const pf=PROFILES[$('profile').value]; const n=E.standards.applicable(E.standards.load(STD), pf.profile).length; const calls=1+Math.ceil(n/P.REQUIREMENTS_PER_CALL); $('availability').textContent='Ready. '+pf.label+' profile: '+n+' requirements, '+calls+' Claude requests on your account (1 to read the plan, then '+P.REQUIREMENTS_PER_CALL+' requirements per request).'; }
+$('profile').addEventListener('change', readyText);
+/* ---------- start ---------- */
+$('plan').value = SAMPLE_PLAN; $('attest').checked = true; updateMeta(); renderAll();
+busy(false);
+$('availability').textContent = 'Connecting to Claude…';
+const use = window.claude && window.claude.use;
+if(!use){ $('availability').textContent = 'Open this page in Claude (signed in) to run the AI steps.'; }
+else {
+  window.claude.use('sample').then(s=>{
+    if(!s){ $('availability').textContent = 'Claude is not reachable in this view. Open the page in Claude while signed in.'; busy(false); return; }
+    const lim = s.limits ? s.limits().catch(()=>null) : Promise.resolve(null);
+    lim.then(l=>{ sample = s; if(l && l.maxPromptBytes) maxBytes=l.maxPromptBytes; /* else keep the documented 256 KiB cap */ readyText(); busy(false); });
+  });
+  window.claude.use('downloads').then(d=>{ downloads=d; if(state && state.report) renderReport(); });
+}
+</script>

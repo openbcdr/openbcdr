@@ -1,0 +1,42 @@
+COMPLIANCE ANALYSIS REPORT
+Plan: APP_PAYPROC_v4 4.0  |  Date: 2026-10-15
+Analyzed Against: FFIEC BCM Booklet, NIST SP 800-34 Rev. 1
+
+========================================================================
+!! NOT EXAMINER-READY - the coverage score is WITHHELD.
+   The findings below are indicative only.
+
+   - 51 of 51 requirement records in scope have not been confirmed against their
+     primary source.
+     Unvalidated: FFIEC-BCM-IIA-1, FFIEC-BCM-IIB-1, FFIEC-BCM-IIIA-1, FFIEC-BCM-IIIA-2, FFIEC-BCM-IIIA-3, FFIEC-BCM-IIIA1-1, FFIEC-BCM-IIIA1-2, FFIEC-BCM-IIIA2-1, FFIEC-BCM-IIIA3-1, FFIEC-BCM-IIIA3-2...
+========================================================================
+
+Coverage Summary:
+  Full Coverage:      0 requirements (0%)
+  Partial Coverage:  33 requirements (65%)
+  Gap:               17 requirements (33%)
+  Unverifiable:       1 requirements (2%)  <- needs human review, NOT counted as coverage
+
+Coherence Findings (deterministic checks, no model involved):
+  CRITICAL  vendor_coverage          Critical vendor incompletely documented: FIS
+  HIGH      bia_freshness            Business Impact Analysis is out of date
+  HIGH      contact_backup           No backup contact for role: Facilities Lead
+  HIGH      contact_backup           No backup contact for role: Technology Lead
+  HIGH      contact_currency         Stale contact: J. Smith
+  HIGH      procedure_missing        Scenario has no documented procedure: pandemic
+  HIGH      procedure_unresolved     Unresolved placeholder in procedure: Facility Loss
+  HIGH      rto_dependency           RTO conflict: Payment Processing cannot meet its objective
+  HIGH      test_version             Current plan version has never been tested
+  HIGH      vendor_sla               No SLA on file for critical vendor: FIS
+  MEDIUM    contact_currency         Stale contact: A. Bhatt
+  MEDIUM    contact_currency         Stale contact: J. Rivera
+  MEDIUM    contact_currency         Stale contact: M. Okonkwo
+  MEDIUM    procedure_incomplete     Incomplete procedure: Facility Loss
+  MEDIUM    test_scenario_gap        Scenario planned but never tested: Cyber incident
+  MEDIUM    test_scenario_gap        Scenario planned but never tested: facility loss
+  MEDIUM    test_scenario_gap        Scenario planned but never tested: pandemic
+
+Method: coverage judged by model against the standards index; every
+coverage claim quote-verified against plan source text. Coherence
+findings are computed, not inferred. All findings require risk-owner
+disposition before any plan change.
