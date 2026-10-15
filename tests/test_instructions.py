@@ -75,7 +75,9 @@ import hashlib  # noqa: E402
 # Fixed fingerprints of the prompts as they were before organisation profiles
 # existed (Phase 1b). Editing a prompt is allowed, but it must be deliberate:
 # update these with the change.
-HIST = {"ingest": "d66aecc9bcf84673e8f376365b294dddba99f3622396eb56f2821fc83d15f26a",
+# 2026-10-15: ingest updated deliberately (system_inventory no longer "every system named anywhere",
+# which made the stale-system check impossible to trigger on live extraction).
+HIST = {"ingest": "99396f833508d98be601b8551a1bb1995cf2430d739e70857cf5a56683e0b602",
         "compliance": "bf283eaf52be81c32ad4a3aeeb2c76bd0d6bb72c65ab0f2442afc9e504f26a9b"}
 base_ingest, base_comp = prompts()
 check("ingest prompt matches its historical fingerprint",

@@ -35,6 +35,9 @@ Core Banking is recovered under its own plan at an RTO of 4 hours.
 Treasury Interface is in scope for this application. Recovery objectives for
 Treasury Interface are being established.
 
+Critical systems: Payment Processing, Payment Gateway, Settlement Batch and
+Treasury Interface are designated critical for this plan.
+
 ## Section 3 — Emergency Contact Tree
 
 | Role | Name | Title | Phone | Email | Last verified |
